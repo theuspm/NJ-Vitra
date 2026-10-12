@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vidrogestao-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vidro_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vidro_secret_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-vidrogestao_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vidro_admin -d vidrogestao_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vidrogestao-app
+    restart: always
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://vidro_admin:vidro_secret_pass@postgres:5432/vidrogestao_db?schema=public
+      JWT_SECRET: ${JWT_SECRET:-vidro_super_secret_jwt_key_2026}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-vidro_super_secret_refresh_key_2026}
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

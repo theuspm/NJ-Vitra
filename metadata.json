@@ -1,0 +1,6 @@
+{
+  "name": "VidroGestão - SaaS ERP para Vidraçarias",
+  "description": "Sistema completo e especializado de gestão comercial, operacional, orçamentos, estoque e produção para vidraçarias.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
