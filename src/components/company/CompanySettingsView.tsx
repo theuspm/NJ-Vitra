@@ -18,6 +18,7 @@ import { useVidracaria } from '../../context/VidracariaContext';
 import { useAuth } from '../../context/AuthContext';
 import { CompanySettings } from '../../types';
 import { PdfService } from '../../services/PdfService';
+import { maskCnpj, maskPhone } from '../../utils/masks';
 
 export const CompanySettingsView: React.FC = () => {
   const { companySettings, updateCompanySettings, recordAuditLog, quotes, customers } = useVidracaria();
@@ -265,8 +266,9 @@ export const CompanySettingsView: React.FC = () => {
                 type="text"
                 required
                 value={formData.cnpj}
-                onChange={(e) => handleInputChange('cnpj', e.target.value)}
+                onChange={(e) => handleInputChange('cnpj', maskCnpj(e.target.value))}
                 placeholder="00.000.000/0001-00"
+                maxLength={18}
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
@@ -303,8 +305,9 @@ export const CompanySettingsView: React.FC = () => {
               <input
                 type="text"
                 value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
+                onChange={(e) => handleInputChange('phone', maskPhone(e.target.value))}
                 placeholder="(11) 3921-8800"
+                maxLength={15}
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
@@ -317,8 +320,9 @@ export const CompanySettingsView: React.FC = () => {
                 type="text"
                 required
                 value={formData.whatsapp}
-                onChange={(e) => handleInputChange('whatsapp', e.target.value)}
+                onChange={(e) => handleInputChange('whatsapp', maskPhone(e.target.value))}
                 placeholder="(11) 98765-4321"
+                maxLength={15}
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-bold text-emerald-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
@@ -416,32 +420,6 @@ export const CompanySettingsView: React.FC = () => {
                 />
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Bloco 4: Frase Padrão / Observações do Orçamento */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-            <FileText className="w-4 h-4 text-blue-600" />
-            <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              4. Observações & Políticas Padrão Impressas no PDF
-            </h2>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Texto Padrão de Condições & Normas ABNT (sai no campo de Observações do PDF)
-            </label>
-            <textarea
-              rows={3}
-              value={formData.quotePolicyNotes || ''}
-              onChange={(e) => handleInputChange('quotePolicyNotes', e.target.value)}
-              placeholder="Ex: Vidros de segurança temperados certificados conforme normas ABNT NBR 14698. Instalação executada por vidraceiros especializados."
-              className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 leading-relaxed"
-            />
-            <span className="text-[11px] text-slate-500 mt-1 block">
-              Caso um orçamento específico não tenha observações personalizadas digitadas pelo vendedor, este texto institucional será impresso automaticamente.
-            </span>
           </div>
         </div>
 

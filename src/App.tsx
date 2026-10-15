@@ -8,17 +8,13 @@ import { AuthProvider } from './context/AuthContext';
 import { VidracariaProvider } from './context/VidracariaContext';
 import { Sidebar, ActiveTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
-import { DashboardView } from './components/dashboard/DashboardView';
 import { QuotesView } from './components/quotes/QuotesView';
 import { OrdersView } from './components/orders/OrdersView';
-import { CustomersView } from './components/customers/CustomersView';
-import { ProductsView } from './components/products/ProductsView';
-import { ServicesView } from './components/services/ServicesView';
 import { CompanySettingsView } from './components/company/CompanySettingsView';
 import { DatabaseView } from './components/database/DatabaseView';
 
 const MainLayout: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('quotes');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
 
@@ -29,13 +25,6 @@ const MainLayout: React.FC = () => {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard':
-        return (
-          <DashboardView
-            onNavigate={(tab) => setActiveTab(tab)}
-            onOpenNewQuote={handleOpenNewQuote}
-          />
-        );
       case 'quotes':
         return (
           <QuotesView
@@ -46,21 +35,16 @@ const MainLayout: React.FC = () => {
         );
       case 'orders':
         return <OrdersView />;
-      case 'customers':
-        return <CustomersView />;
-      case 'products':
-        return <ProductsView />;
-      case 'services':
-        return <ServicesView />;
       case 'company':
         return <CompanySettingsView />;
       case 'database':
         return <DatabaseView />;
       default:
         return (
-          <DashboardView
-            onNavigate={(tab) => setActiveTab(tab)}
-            onOpenNewQuote={handleOpenNewQuote}
+          <QuotesView
+            isCreateModalOpen={isNewQuoteOpen}
+            onCloseCreateModal={() => setIsNewQuoteOpen(false)}
+            onNavigateToCompany={() => setActiveTab('company')}
           />
         );
     }

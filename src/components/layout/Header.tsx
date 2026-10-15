@@ -71,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
                 setShowSearchResults(true);
               }}
               onFocus={() => setShowSearchResults(true)}
-              placeholder="Buscar cliente, vidro, produto, orçamento ou pedido..."
+              placeholder="Buscar orçamento por número, cliente ou pedido..."
               className="w-full pl-10 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
             />
           </div>
@@ -79,29 +79,6 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Resultados da Busca Global */}
           {showSearchResults && searchResults && searchQuery.trim().length > 0 && (
             <div className="absolute left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 py-2 max-h-96 overflow-y-auto z-50 divide-y divide-slate-100">
-              {/* Clientes */}
-              {searchResults.customers.length > 0 && (
-                <div className="p-2">
-                  <div className="flex items-center gap-1.5 px-2 pb-1 text-[10px] font-bold text-slate-500 uppercase">
-                    <Users className="w-3 h-3 text-blue-600" />
-                    <span>Clientes</span>
-                  </div>
-                  {searchResults.customers.slice(0, 3).map((c) => (
-                    <div
-                      key={c.id}
-                      onClick={() => {
-                        onNavigate('customers');
-                        setShowSearchResults(false);
-                      }}
-                      className="px-2 py-1.5 hover:bg-blue-50 rounded-lg cursor-pointer text-xs"
-                    >
-                      <p className="font-semibold text-slate-800">{c.name}</p>
-                      <p className="text-slate-500 text-[11px]">{c.document} • {c.phone}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
               {/* Orçamentos */}
               {searchResults.quotes.length > 0 && (
                 <div className="p-2">
@@ -109,7 +86,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <FileText className="w-3 h-3 text-indigo-600" />
                     <span>Orçamentos</span>
                   </div>
-                  {searchResults.quotes.slice(0, 3).map((q) => (
+                  {searchResults.quotes.slice(0, 5).map((q) => (
                     <div
                       key={q.id}
                       onClick={() => {
@@ -134,7 +111,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <ShoppingBag className="w-3 h-3 text-emerald-600" />
                     <span>Pedidos</span>
                   </div>
-                  {searchResults.orders.slice(0, 3).map((o) => (
+                  {searchResults.orders.slice(0, 5).map((o) => (
                     <div
                       key={o.id}
                       onClick={() => {
@@ -152,28 +129,9 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               )}
 
-              {/* Produtos / Vidros */}
-              {searchResults.products.length > 0 && (
-                <div className="p-2">
-                  <div className="flex items-center gap-1.5 px-2 pb-1 text-[10px] font-bold text-slate-500 uppercase">
-                    <Package className="w-3 h-3 text-cyan-600" />
-                    <span>Produtos e Vidros</span>
-                  </div>
-                  {searchResults.products.slice(0, 3).map((p) => (
-                    <div
-                      key={p.id}
-                      onClick={() => {
-                        onNavigate('products');
-                        setShowSearchResults(false);
-                      }}
-                      className="px-2 py-1.5 hover:bg-blue-50 rounded-lg cursor-pointer text-xs"
-                    >
-                      <p className="font-semibold text-slate-800">{p.name}</p>
-                      <p className="text-slate-500 text-[11px]">
-                        {p.internalCode} • R$ {p.salePrice.toFixed(2)}/{p.unit}
-                      </p>
-                    </div>
-                  ))}
+              {searchResults.quotes.length === 0 && searchResults.orders.length === 0 && (
+                <div className="p-4 text-center text-xs text-slate-400">
+                  Nenhum orçamento ou pedido encontrado.
                 </div>
               )}
             </div>

@@ -114,18 +114,29 @@ export class PdfService {
     doc.setFontSize(9);
     doc.setTextColor(20, 30, 45);
 
-    const clientDoc = customer.type === 'PJ' ? `CNPJ: ${customer.document}` : `CPF: ${customer.document}`;
+    const effectiveName = (quote.customerName || customer?.name || 'Consumidor').toUpperCase();
+    const effectiveDoc = quote.customerDocument || customer?.document;
+    const effectivePhone = quote.customerPhone || customer?.whatsapp || customer?.phone;
+
+    let docText = '';
+    if (effectiveDoc) {
+      docText = effectiveDoc.length > 11 ? `CNPJ: ${effectiveDoc}` : `CPF: ${effectiveDoc}`;
+    }
+    if (effectivePhone) {
+      docText = docText ? `${docText}  |  WhatsApp: ${effectivePhone}` : `WhatsApp: ${effectivePhone}`;
+    }
+    if (!docText) docText = 'Não informado';
     
     // Coluna Esquerda
     doc.setFont('helvetica', 'bold');
     doc.text('Cliente:', 14, y + 13);
     doc.setFont('helvetica', 'normal');
-    doc.text(customer.name.toUpperCase(), 30, y + 13);
+    doc.text(effectiveName, 30, y + 13);
 
     doc.setFont('helvetica', 'bold');
     doc.text('Documento:', 14, y + 18.5);
     doc.setFont('helvetica', 'normal');
-    doc.text(`${clientDoc}  |  WhatsApp: ${customer.whatsapp || customer.phone}`, 35, y + 18.5);
+    doc.text(docText, 35, y + 18.5);
 
     doc.setFont('helvetica', 'bold');
     doc.text('Instalação:', 14, y + 24);
@@ -144,10 +155,11 @@ export class PdfService {
     doc.setFont('helvetica', 'normal');
     doc.text(new Date(quote.validUntil).toLocaleDateString('pt-BR'), 158, y + 18.5);
 
+    const effectiveSeller = (quote.sellerName || seller?.name || 'Vendas').toUpperCase();
     doc.setFont('helvetica', 'bold');
     doc.text('Vendedor:', 138, y + 24);
     doc.setFont('helvetica', 'normal');
-    doc.text(seller.name.toUpperCase(), 158, y + 24);
+    doc.text(effectiveSeller, 158, y + 24);
 
     y += 37;
 
@@ -315,12 +327,13 @@ export class PdfService {
       14,
       y + 13
     );
-    doc.text(
-      `Observações: ${quote.notes || company.quotePolicyNotes}`,
-      14,
-      y + 18.5
-    );
-    doc.text('Instalação executada por vidraceiros e técnicos qualificados.', 14, y + 24);
+    if (quote.notes && quote.notes.trim()) {
+      doc.text(
+        `Observações: ${quote.notes.trim()}`,
+        14,
+        y + 18.5
+      );
+    }
 
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(7.5);

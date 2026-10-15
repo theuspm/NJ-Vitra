@@ -226,7 +226,11 @@ export interface Quote {
   id: string;
   quoteNumber: string; // Ex: ORC-2026-001001
   customerId: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerDocument?: string;
   userId: string; // Vendedor
+  sellerName?: string; // Nome do vendedor inserido manualmente
   currentVersion: number;
   status: QuoteStatus;
 

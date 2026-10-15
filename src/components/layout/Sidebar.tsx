@@ -20,14 +20,14 @@ import {
 import { useVidracaria } from '../../context/VidracariaContext';
 
 export type ActiveTab =
-  | 'dashboard'
   | 'quotes'
   | 'orders'
+  | 'company'
+  | 'database'
+  | 'dashboard'
   | 'customers'
   | 'products'
-  | 'services'
-  | 'company'
-  | 'database';
+  | 'services';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -42,7 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   setIsOpen,
 }) => {
-  const { quotes, orders, customers, products, services, companySettings } = useVidracaria();
+  const { quotes, orders, companySettings } = useVidracaria();
 
   // Badges informativos em tempo real
   const openQuotesCount = quotes.filter(
@@ -52,20 +52,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     (o) => o.status !== 'CONCLUIDO' && o.status !== 'CANCELADO'
   ).length;
 
-  const salesItems = [
-    {
-      id: 'dashboard' as ActiveTab,
-      label: 'Dashboard',
-      icon: LayoutDashboard,
-      description: 'Visão geral e vendas',
-    },
+  const mainItems = [
     {
       id: 'quotes' as ActiveTab,
       label: 'Orçamentos',
       icon: FileText,
       badge: openQuotesCount > 0 ? openQuotesCount : undefined,
       badgeColor: 'bg-blue-600',
-      description: 'Cotações e cálculo m²',
+      description: 'Emissão e cálculo de vidros',
     },
     {
       id: 'orders' as ActiveTab,
@@ -73,31 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: ShoppingBag,
       badge: activeOrdersCount > 0 ? activeOrdersCount : undefined,
       badgeColor: 'bg-emerald-600',
-      description: 'Vendas e pedidos fechados',
-    },
-  ];
-
-  const registryItems = [
-    {
-      id: 'customers' as ActiveTab,
-      label: 'Clientes',
-      icon: Users,
-      count: customers.filter((c) => !c.deletedAt).length,
-      description: 'Pessoa física e jurídica',
-    },
-    {
-      id: 'products' as ActiveTab,
-      label: 'Produtos e Vidros',
-      icon: Package,
-      count: products.filter((p) => !p.deletedAt).length,
-      description: 'Vidros, perfis e ferragens',
-    },
-    {
-      id: 'services' as ActiveTab,
-      label: 'Serviços',
-      icon: Wrench,
-      count: services.filter((s) => !s.deletedAt).length,
-      description: 'Mão de obra e instalação',
+      description: 'Pedidos aprovados e fechados',
     },
   ];
 
@@ -138,12 +108,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Menu Navigation */}
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-          {/* Grupo 1: Operação e Vendas */}
+          {/* Grupo 1: Gestão Operacional */}
           <div className="space-y-1">
             <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Operação e Vendas
+              Operação Comercial
             </div>
-            {salesItems.map((item) => {
+            {mainItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -176,43 +146,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       {item.badge}
                     </span>
                   )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Grupo 2: Cadastros */}
-          <div className="space-y-1">
-            <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Cadastros
-            </div>
-            {registryItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 font-bold'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon
-                      className={`w-4 h-4 shrink-0 ${
-                        isActive ? 'text-white' : 'text-slate-400'
-                      }`}
-                    />
-                    <span>{item.label}</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-medium">
-                    {item.count}
-                  </span>
                 </button>
               );
             })}

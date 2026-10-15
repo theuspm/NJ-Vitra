@@ -19,7 +19,7 @@ import {
 export const INITIAL_USERS: User[] = [
   {
     id: 'user-admin-1',
-    name: 'Carlos Albuquerque',
+    name: 'Vendedor Comercial',
     email: 'admin@vidracaria.com.br',
     role: 'ADMINISTRADOR',
     maxDiscountPercent: 100,

@@ -85,7 +85,11 @@ interface VidracariaContextType {
 
   // Ações de Orçamentos
   createQuote: (data: {
-    customerId: string;
+    customerId?: string;
+    customerName?: string;
+    customerPhone?: string;
+    customerDocument?: string;
+    sellerName?: string;
     expectedDeliveryDays?: number;
     installationAddress?: string;
     paymentConditionId?: string;
@@ -486,7 +490,11 @@ export const VidracariaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // ORÇAMENTOS (QUOTES)
   // ==========================================
   const createQuote = (data: {
-    customerId: string;
+    customerId?: string;
+    customerName?: string;
+    customerPhone?: string;
+    customerDocument?: string;
+    sellerName?: string;
     expectedDeliveryDays?: number;
     installationAddress?: string;
     paymentConditionId?: string;
@@ -516,6 +524,50 @@ export const VidracariaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const discountCheck = DiscountPolicyService.validateDiscount(currentUser.role, requestedDiscount);
     if (!discountCheck.isValid) {
       throw new Error(discountCheck.message);
+    }
+
+    // Identificação ou criação transparente do cliente manual
+    let effectiveCustomerId = data.customerId;
+    const manualName = data.customerName?.trim() || '';
+    if (!effectiveCustomerId) {
+      const existing = customers.find(
+        (c) => c.name.trim().toLowerCase() === manualName.toLowerCase()
+      );
+      if (existing) {
+        effectiveCustomerId = existing.id;
+      } else {
+        const newCustId = `cust-${Date.now()}`;
+        const newCust: Customer = {
+          id: newCustId,
+          type: data.customerDocument && data.customerDocument.length > 14 ? 'PJ' : 'PF',
+          name: manualName || 'Consumidor',
+          document: data.customerDocument || '',
+          phone: data.customerPhone || '',
+          whatsapp: data.customerPhone || '',
+          email: '',
+          addresses: data.installationAddress
+            ? [
+                {
+                  id: `addr-${Date.now()}`,
+                  customerId: newCustId,
+                  type: 'INSTALACAO',
+                  street: data.installationAddress,
+                  number: 'S/N',
+                  neighborhood: '',
+                  city: '',
+                  state: '',
+                  zipCode: '',
+                  isDefault: true,
+                },
+              ]
+            : [],
+          notes: 'Cliente inserido no orçamento manual',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setCustomers((prev) => [newCust, ...prev]);
+        effectiveCustomerId = newCustId;
+      }
     }
 
     const quoteSeq = 1000 + quotes.length + 1;
@@ -591,8 +643,12 @@ export const VidracariaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const newQuote: Quote = {
       id: quoteId,
       quoteNumber,
-      customerId: data.customerId,
+      customerId: effectiveCustomerId || 'cust-balcao',
+      customerName: manualName || undefined,
+      customerPhone: data.customerPhone?.trim() || undefined,
+      customerDocument: data.customerDocument?.trim() || undefined,
       userId: currentUser.id,
+      sellerName: data.sellerName?.trim() || undefined,
       currentVersion: 1,
       status: 'EM_NEGOCIACAO',
       issueDate: new Date().toISOString(),
