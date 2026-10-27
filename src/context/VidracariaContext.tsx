@@ -44,6 +44,7 @@ import { useAuth } from './AuthContext';
 import { DiscountPolicyService } from '../services/DiscountPolicyService';
 import { GlassCalculationService } from '../services/GlassCalculationService';
 import { LocalDatabaseService } from '../services/LocalDatabaseService';
+import { BackendApiService } from '../services/BackendApiService';
 
 interface VidracariaContextType {
   // Dados
@@ -230,10 +231,40 @@ export const VidracariaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         updatedAt: new Date().toISOString(),
       };
       localStorage.setItem('vidrogestao_company_settings', JSON.stringify(updated));
+      BackendApiService.saveCompanySettings(updated);
       return updated;
     });
   };
   const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  // Sincronização inicial com o Banco de Dados do Backend (Supabase)
+  useEffect(() => {
+    let isMounted = true;
+
+    BackendApiService.fetchQuotes().then((remoteQuotes) => {
+      if (isMounted && remoteQuotes && remoteQuotes.length > 0) {
+        setQuotes((prev) => {
+          const map = new Map<string, Quote>();
+          prev.forEach((q) => map.set(q.id, q));
+          remoteQuotes.forEach((q) => map.set(q.id, q));
+          return Array.from(map.values());
+        });
+      }
+    });
+
+    BackendApiService.fetchCompanySettings().then((remoteSettings) => {
+      if (isMounted && remoteSettings) {
+        setCompanySettings((prev) => ({
+          ...prev,
+          ...remoteSettings,
+        }));
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Persistência em LocalStorage e IndexedDB (Banco Local Seguro)
   useEffect(() => {
@@ -669,6 +700,7 @@ export const VidracariaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
 
     setQuotes((prev) => [newQuote, ...prev]);
+    BackendApiService.saveQuote(newQuote);
     logAudit(
       'CREATE_QUOTE',
       'Quote',
@@ -734,7 +766,7 @@ export const VidracariaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           if (q.status === 'CANCELADO') {
             throw new Error('Não é permitido aprovar orçamento cancelado.');
           }
-          return {
+          const updatedQuote: Quote = {
             ...q,
             status: 'APROVADO',
             approvedAt: now,
@@ -742,6 +774,8 @@ export const VidracariaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             approvalNotes: notes || 'Aprovado pelo cliente via contato telefônico/WhatsApp',
             updatedAt: now,
           };
+          BackendApiService.saveQuote(updatedQuote);
+          return updatedQuote;
         }
         return q;
       })
