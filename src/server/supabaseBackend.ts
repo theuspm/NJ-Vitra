@@ -8,14 +8,36 @@ import express, { Request, Response, Router } from 'express';
 
 let supabaseClient: SupabaseClient | null = null;
 
+export function cleanSupabaseUrl(rawUrl: string): string {
+  let cleaned = (rawUrl || '').trim();
+  // Remove trailing slashes
+  cleaned = cleaned.replace(/\/+$/, '');
+  // Remove /rest/v1 se tiver sido colado por engano
+  cleaned = cleaned.replace(/\/rest\/v1\/?$/, '');
+  // Se tiver sido colada a URL do painel (ex: https://supabase.com/dashboard/project/abcde...)
+  const dashboardMatch = cleaned.match(/dashboard\/project\/([a-zA-Z0-9_-]+)/);
+  if (dashboardMatch && dashboardMatch[1]) {
+    cleaned = `https://${dashboardMatch[1]}.supabase.co`;
+  }
+  // Garante o protocolo https://
+  if (!cleaned.startsWith('http://') && !cleaned.startsWith('https://')) {
+    cleaned = `https://${cleaned}`;
+  }
+  return cleaned;
+}
+
 export function getSupabase(): SupabaseClient | null {
   if (supabaseClient) return supabaseClient;
 
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  const rawUrl = process.env.SUPABASE_URL;
+  const rawKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
-  if (url && key) {
+  if (rawUrl && rawKey) {
+    const url = cleanSupabaseUrl(rawUrl);
+    const key = rawKey.trim();
+
     try {
+      console.log(`[Supabase Server] Conectando ao host: ${url}`);
       supabaseClient = createClient(url, key, {
         auth: { persistSession: false },
       });
