@@ -44,10 +44,13 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
   onCloseCreateModal,
   onNavigateToCompany,
 }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, currentPlan } = useAuth();
+  const isPremium = currentPlan === 'PREMIUM';
   const {
     quotes,
     customers,
+    products,
+    services,
     paymentMethods,
     companySettings,
     createQuote,
@@ -687,13 +690,45 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
                 </div>
               )}
 
-              {/* SEÇÃO 1: DADOS DO CLIENTE (MANUAL) */}
+              {/* SEÇÃO 1: DADOS DO CLIENTE */}
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-                <div className="flex items-center gap-1.5 pb-2 border-b border-slate-200">
-                  <User className="w-4 h-4 text-blue-600" />
-                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                    1. Dados do Cliente & Local da Obra
-                  </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200">
+                  <div className="flex items-center gap-1.5">
+                    <User className="w-4 h-4 text-blue-600" />
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      1. Dados do Cliente & Local da Obra
+                    </span>
+                  </div>
+
+                  {isPremium && customers.filter((c) => !c.deletedAt).length > 0 && (
+                    <select
+                      onChange={(e) => {
+                        const cust = customers.find((c) => c.id === e.target.value);
+                        if (cust) {
+                          setCustomerName(cust.name);
+                          setCustomerPhone(maskPhone(cust.whatsapp || cust.phone || ''));
+                          setCustomerDocument(maskCpfCnpj(cust.document || ''));
+                          const addr = cust.addresses?.[0];
+                          if (addr) {
+                            setInstallationAddress(
+                              `${addr.street}, ${addr.number}${addr.complement ? ' - ' + addr.complement : ''} - ${addr.neighborhood}, ${addr.city}/${addr.state}`
+                            );
+                          }
+                        }
+                      }}
+                      defaultValue=""
+                      className="px-2.5 py-1 text-[11px] bg-amber-50 border border-amber-300 text-amber-900 font-bold rounded-lg focus:outline-hidden"
+                    >
+                      <option value="">Preencher com Cliente do CRM (Premium)...</option>
+                      {customers
+                        .filter((c) => !c.deletedAt)
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.phone || c.document})
+                          </option>
+                        ))}
+                    </select>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -810,6 +845,71 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {/* Seletor de Catálogo (Exclusivo Pacote Premium) */}
+                {isPremium && (products.length > 0 || services.length > 0) && (
+                  <div className="p-2.5 bg-amber-50/70 border border-amber-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-amber-900">
+                      Catálogo Cadastrado (Pacote Premium):
+                    </span>
+                    <select
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        if (val.startsWith('prod:')) {
+                          const pId = val.replace('prod:', '');
+                          const prod = products.find((p) => p.id === pId);
+                          if (prod) {
+                            setItemDescription(prod.name);
+                            if (prod.unit === 'M2') {
+                              setItemCategory('VIDRO');
+                              setItemUnit('M2');
+                              setPricingMode('M2');
+                              setPricePerM2(prod.salePrice);
+                            } else {
+                              setItemCategory('OUTRO');
+                              setItemUnit(prod.unit);
+                              setPricingMode('TOTAL');
+                              setManualPrice(prod.salePrice);
+                            }
+                          }
+                        } else if (val.startsWith('serv:')) {
+                          const sId = val.replace('serv:', '');
+                          const srv = services.find((s) => s.id === sId);
+                          if (srv) {
+                            setItemCategory('OUTRO');
+                            setItemDescription(srv.name);
+                            setItemUnit(srv.unit);
+                            setPricingMode('TOTAL');
+                            setManualPrice(srv.salePrice);
+                          }
+                        }
+                      }}
+                      defaultValue=""
+                      className="px-2.5 py-1.5 text-xs bg-white border border-amber-300 rounded-lg font-semibold text-slate-800"
+                    >
+                      <option value="">Selecionar produto ou serviço do catálogo...</option>
+                      <optgroup label="Produtos & Vidros">
+                        {products
+                          .filter((p) => !p.deletedAt && p.isActive)
+                          .map((p) => (
+                            <option key={p.id} value={`prod:${p.id}`}>
+                              {p.name} — R$ {p.salePrice.toFixed(2)} / {p.unit}
+                            </option>
+                          ))}
+                      </optgroup>
+                      <optgroup label="Serviços & Instalação">
+                        {services
+                          .filter((s) => !s.deletedAt && s.isActive)
+                          .map((s) => (
+                            <option key={s.id} value={`serv:${s.id}`}>
+                              {s.name} — R$ {s.salePrice.toFixed(2)} / {s.unit}
+                            </option>
+                          ))}
+                      </optgroup>
+                    </select>
+                  </div>
+                )}
 
                 {/* Campo de Descrição Livre */}
                 <div>

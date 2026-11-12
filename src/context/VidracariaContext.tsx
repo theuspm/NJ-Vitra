@@ -155,11 +155,19 @@ interface VidracariaContextType {
 const VidracariaContext = createContext<VidracariaContextType | undefined>(undefined);
 
 export const VidracariaProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, currentPlan, setSubscriptionPlan } = useAuth();
+  const tenantId = currentUser.tenantId || currentUser.id || 'default';
 
-  // Helper para carregar ou inicializar do LocalStorage
-  const loadInitial = <T,>(key: string, fallback: T): T => {
-    const data = localStorage.getItem(`vidrogestao_${key}`);
+  const getTenantStorageKey = (key: string, tid: string = tenantId) => {
+    return tid === 'default' || tid === 'usr-admin-1'
+      ? `vidrogestao_${key}`
+      : `vidrogestao_${tid}_${key}`;
+  };
+
+  // Helper para carregar ou inicializar do LocalStorage isolado por lojista
+  const loadInitial = <T,>(key: string, fallback: T, tid: string = tenantId): T => {
+    const storageKey = getTenantStorageKey(key, tid);
+    const data = localStorage.getItem(storageKey);
     if (data !== null) {
       try {
         return JSON.parse(data);
@@ -189,124 +197,211 @@ export const VidracariaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     LocalDatabaseService.clearAllData().catch(console.error);
   }
 
-  const [customers, setCustomers] = useState<Customer[]>(() => loadInitial('customers', []));
-  const [products, setProducts] = useState<Product[]>(() => loadInitial('products', []));
+  const isDemoPremium = tenantId === 'tenant-demo-premium';
+
+  const [customers, setCustomers] = useState<Customer[]>(() =>
+    loadInitial('customers', isDemoPremium ? INITIAL_CUSTOMERS : [])
+  );
+  const [products, setProducts] = useState<Product[]>(() =>
+    loadInitial('products', isDemoPremium ? INITIAL_PRODUCTS : [])
+  );
   const [categories] = useState<ProductCategory[]>(INITIAL_CATEGORIES);
-  const [services, setServices] = useState<Service[]>(() => loadInitial('services', []));
-  const [suppliers, setSuppliers] = useState<Supplier[]>(() => loadInitial('suppliers', []));
+  const [services, setServices] = useState<Service[]>(() =>
+    loadInitial('services', isDemoPremium ? INITIAL_SERVICES : [])
+  );
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() =>
+    loadInitial('suppliers', isDemoPremium ? INITIAL_SUPPLIERS : [])
+  );
   const [paymentMethods] = useState<PaymentMethod[]>(INITIAL_PAYMENT_METHODS);
   const [quotes, setQuotes] = useState<Quote[]>(() => loadInitial('quotes', []));
   const [orders, setOrders] = useState<Order[]>(() => loadInitial('orders', []));
-  const [stocks, setStocks] = useState<Stock[]>(() => loadInitial('stocks', []));
-  const [stockMovements, setStockMovements] = useState<StockMovement[]>(() => loadInitial('stock_movements', []));
-  const [productionOrders, setProductionOrders] = useState<ProductionOrder[]>(() => loadInitial('production_orders', []));
-  const [receivables, setReceivables] = useState<Receivable[]>(() => loadInitial('receivables', []));
-  const [materialLosses, setMaterialLosses] = useState<MaterialLoss[]>(() => loadInitial('losses', []));
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => loadInitial('audit_logs', []));
+  const [stocks, setStocks] = useState<Stock[]>(() =>
+    loadInitial('stocks', isDemoPremium ? INITIAL_STOCKS : [])
+  );
+  const [stockMovements, setStockMovements] = useState<StockMovement[]>(() =>
+    loadInitial('stock_movements', [])
+  );
+  const [productionOrders, setProductionOrders] = useState<ProductionOrder[]>(() =>
+    loadInitial('production_orders', [])
+  );
+  const [receivables, setReceivables] = useState<Receivable[]>(() =>
+    loadInitial('receivables', [])
+  );
+  const [materialLosses, setMaterialLosses] = useState<MaterialLoss[]>(() =>
+    loadInitial('losses', [])
+  );
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() =>
+    loadInitial('audit_logs', [])
+  );
   const [priceHistories, setPriceHistories] = useState<PriceHistory[]>([]);
   const [companySettings, setCompanySettings] = useState<CompanySettings>(() =>
     loadInitial('company_settings', {
-      name: 'VIDRAÇARIA & ESQUADRIAS',
-      tradingName: 'Sua Vidraçaria',
+      id: tenantId,
+      tenantId,
+      plan: currentPlan,
+      name: currentUser.storeName || 'VIDRAÇARIA & ESQUADRIAS',
+      tradingName: currentUser.storeName || 'Sua Vidraçaria',
       cnpj: '',
       stateRegistration: '',
       phone: '',
       whatsapp: '',
-      email: '',
+      email: currentUser.email || '',
       website: '',
       address: '',
       city: 'São Paulo',
       state: 'SP',
       zipCode: '',
-      quotePolicyNotes: 'Vidros de segurança temperados e laminados certificados conforme normas ABNT NBR 14698/14697. Instalação executada por equipe especializada.',
+      quotePolicyNotes:
+        'Vidros de segurança temperados e laminados certificados conforme normas ABNT NBR 14698/14697. Instalação executada por equipe especializada.',
       updatedAt: new Date().toISOString(),
     })
   );
 
+  // Recarrega os dados isolados quando trocar de Lojista (tenantId)
+  useEffect(() => {
+    const demoPrem = tenantId === 'tenant-demo-premium';
+    setCustomers(loadInitial('customers', demoPrem ? INITIAL_CUSTOMERS : [], tenantId));
+    setProducts(loadInitial('products', demoPrem ? INITIAL_PRODUCTS : [], tenantId));
+    setServices(loadInitial('services', demoPrem ? INITIAL_SERVICES : [], tenantId));
+    setSuppliers(loadInitial('suppliers', demoPrem ? INITIAL_SUPPLIERS : [], tenantId));
+    setQuotes(loadInitial('quotes', [], tenantId));
+    setOrders(loadInitial('orders', [], tenantId));
+    setStocks(loadInitial('stocks', demoPrem ? INITIAL_STOCKS : [], tenantId));
+    setStockMovements(loadInitial('stock_movements', [], tenantId));
+    setProductionOrders(loadInitial('production_orders', [], tenantId));
+    setReceivables(loadInitial('receivables', [], tenantId));
+    setMaterialLosses(loadInitial('losses', [], tenantId));
+    setAuditLogs(loadInitial('audit_logs', [], tenantId));
+    setCompanySettings(
+      loadInitial(
+        'company_settings',
+        {
+          id: tenantId,
+          tenantId,
+          plan: currentUser.plan || 'BASICO',
+          name: currentUser.storeName || 'VIDRAÇARIA & ESQUADRIAS',
+          tradingName: currentUser.storeName || 'Sua Vidraçaria',
+          cnpj: '',
+          stateRegistration: '',
+          phone: '',
+          whatsapp: '',
+          email: currentUser.email || '',
+          website: '',
+          address: '',
+          city: 'São Paulo',
+          state: 'SP',
+          zipCode: '',
+          quotePolicyNotes:
+            'Vidros de segurança temperados e laminados certificados conforme normas ABNT NBR 14698/14697. Instalação executada por equipe especializada.',
+          updatedAt: new Date().toISOString(),
+        },
+        tenantId
+      )
+    );
+  }, [tenantId]);
+
   const updateCompanySettings = (newSettings: Partial<CompanySettings>) => {
     setCompanySettings((prev) => {
+      const updatedPlan = newSettings.plan || prev.plan || currentPlan;
       const updated: CompanySettings = {
         ...prev,
         ...newSettings,
+        id: tenantId,
+        tenantId,
+        plan: updatedPlan,
         updatedAt: new Date().toISOString(),
       };
-      localStorage.setItem('vidrogestao_company_settings', JSON.stringify(updated));
+      localStorage.setItem(getTenantStorageKey('company_settings'), JSON.stringify(updated));
       BackendApiService.saveCompanySettings(updated);
+      if (newSettings.plan && newSettings.plan !== currentPlan) {
+        setSubscriptionPlan(newSettings.plan);
+      }
       return updated;
     });
   };
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  // Sincronização inicial com o Banco de Dados do Backend (Supabase)
+  // Sincronização com o Banco de Dados do Backend (Supabase) para o Lojista Atual
   useEffect(() => {
     let isMounted = true;
 
-    BackendApiService.fetchQuotes().then((remoteQuotes) => {
-      if (isMounted && remoteQuotes && remoteQuotes.length > 0) {
+    BackendApiService.fetchQuotes(tenantId).then((remoteQuotes) => {
+      if (isMounted && remoteQuotes) {
         setQuotes((prev) => {
           const map = new Map<string, Quote>();
-          prev.forEach((q) => map.set(q.id, q));
+          prev
+            .filter((q) => !q.tenantId || q.tenantId === tenantId)
+            .forEach((q) => map.set(q.id, q));
           remoteQuotes.forEach((q) => map.set(q.id, q));
           return Array.from(map.values());
         });
       }
     });
 
-    BackendApiService.fetchCompanySettings().then((remoteSettings) => {
+    BackendApiService.fetchCompanySettings(tenantId).then((remoteSettings) => {
       if (isMounted && remoteSettings) {
-        setCompanySettings((prev) => ({
-          ...prev,
-          ...remoteSettings,
-        }));
+        setCompanySettings((prev) => {
+          const merged: CompanySettings = {
+            ...prev,
+            ...remoteSettings,
+            id: tenantId,
+            tenantId,
+          };
+          localStorage.setItem(getTenantStorageKey('company_settings', tenantId), JSON.stringify(merged));
+          return merged;
+        });
+        if (remoteSettings.plan && remoteSettings.plan !== currentPlan) {
+          setSubscriptionPlan(remoteSettings.plan);
+        }
       }
     });
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [tenantId]);
 
-  // Persistência em LocalStorage e IndexedDB (Banco Local Seguro)
+  // Persistência em LocalStorage e IndexedDB isolada por Lojista
   useEffect(() => {
-    localStorage.setItem('vidrogestao_customers', JSON.stringify(customers));
+    localStorage.setItem(getTenantStorageKey('customers'), JSON.stringify(customers));
     LocalDatabaseService.saveCollection('customers', customers);
-  }, [customers]);
+  }, [customers, tenantId]);
 
   useEffect(() => {
-    localStorage.setItem('vidrogestao_products', JSON.stringify(products));
+    localStorage.setItem(getTenantStorageKey('products'), JSON.stringify(products));
     LocalDatabaseService.saveCollection('products', products);
-  }, [products]);
+  }, [products, tenantId]);
 
   useEffect(() => {
-    localStorage.setItem('vidrogestao_services', JSON.stringify(services));
+    localStorage.setItem(getTenantStorageKey('services'), JSON.stringify(services));
     LocalDatabaseService.saveCollection('services', services);
-  }, [services]);
+  }, [services, tenantId]);
 
   useEffect(() => {
-    localStorage.setItem('vidrogestao_quotes', JSON.stringify(quotes));
+    localStorage.setItem(getTenantStorageKey('quotes'), JSON.stringify(quotes));
     LocalDatabaseService.saveCollection('quotes', quotes);
-  }, [quotes]);
+  }, [quotes, tenantId]);
 
   useEffect(() => {
-    localStorage.setItem('vidrogestao_orders', JSON.stringify(orders));
+    localStorage.setItem(getTenantStorageKey('orders'), JSON.stringify(orders));
     LocalDatabaseService.saveCollection('orders', orders);
-  }, [orders]);
+  }, [orders, tenantId]);
 
   useEffect(() => {
-    localStorage.setItem('vidrogestao_stocks', JSON.stringify(stocks));
-  }, [stocks]);
+    localStorage.setItem(getTenantStorageKey('stocks'), JSON.stringify(stocks));
+  }, [stocks, tenantId]);
 
   useEffect(() => {
-    localStorage.setItem('vidrogestao_production_orders', JSON.stringify(productionOrders));
-  }, [productionOrders]);
+    localStorage.setItem(getTenantStorageKey('production_orders'), JSON.stringify(productionOrders));
+  }, [productionOrders, tenantId]);
 
   useEffect(() => {
-    localStorage.setItem('vidrogestao_receivables', JSON.stringify(receivables));
-  }, [receivables]);
+    localStorage.setItem(getTenantStorageKey('receivables'), JSON.stringify(receivables));
+  }, [receivables, tenantId]);
 
   useEffect(() => {
-    localStorage.setItem('vidrogestao_audit_logs', JSON.stringify(auditLogs));
-  }, [auditLogs]);
+    localStorage.setItem(getTenantStorageKey('audit_logs'), JSON.stringify(auditLogs));
+  }, [auditLogs, tenantId]);
 
   // Auditoria Central
   const logAudit = (action: string, entity: string, entityId: string, details?: string, oldValue?: any, newValue?: any) => {
@@ -673,6 +768,7 @@ export const VidracariaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const newQuote: Quote = {
       id: quoteId,
+      tenantId,
       quoteNumber,
       customerId: effectiveCustomerId || 'cust-balcao',
       customerName: manualName || undefined,

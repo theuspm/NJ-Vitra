@@ -6,11 +6,16 @@ export type UserRoleType =
   | 'PRODUCAO'
   | 'FINANCEIRO';
 
+export type SubscriptionPlan = 'BASICO' | 'PREMIUM';
+
 export interface User {
   id: string;
+  tenantId?: string;
   name: string;
   email: string;
   role: UserRoleType;
+  plan?: SubscriptionPlan;
+  storeName?: string;
   maxDiscountPercent: number; // Ex: 5 para Vendedor, 10 para Gerente, 100 para Admin
   isActive: boolean;
   avatarUrl?: string;
@@ -224,6 +229,7 @@ export interface QuoteVersion {
 
 export interface Quote {
   id: string;
+  tenantId?: string;
   quoteNumber: string; // Ex: ORC-2026-001001
   customerId: string;
   customerName?: string;
@@ -547,6 +553,9 @@ export interface Notification {
 }
 
 export interface CompanySettings {
+  id?: string;
+  tenantId?: string;
+  plan?: SubscriptionPlan;
   name: string;
   tradingName?: string;
   cnpj: string;
@@ -559,6 +568,8 @@ export interface CompanySettings {
   city?: string;
   state?: string;
   zipCode?: string;
+  pixKey?: string;
+  pixKeyType?: string;
   quotePolicyNotes?: string;
   updatedAt?: string;
 }
