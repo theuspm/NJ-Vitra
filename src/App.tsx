@@ -26,7 +26,7 @@ import { UsersView } from './components/users/UsersView';
 import { AuditView } from './components/audit/AuditView';
 
 const MainLayout: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, currentPlan } = useAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>('quotes');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
@@ -40,8 +40,14 @@ const MainLayout: React.FC = () => {
     setIsNewQuoteOpen(true);
   };
 
+  const allowedBasicTabs: ActiveTab[] = ['quotes', 'orders', 'company', 'database'];
+  const effectiveTab: ActiveTab =
+    currentPlan === 'BASICO' && !allowedBasicTabs.includes(activeTab)
+      ? 'quotes'
+      : activeTab;
+
   const renderContent = () => {
-    switch (activeTab) {
+    switch (effectiveTab) {
       case 'dashboard':
         return (
           <DashboardView

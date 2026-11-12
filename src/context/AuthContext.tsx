@@ -32,6 +32,17 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function normalizePlanValue(raw: unknown): SubscriptionPlan {
+  if (!raw) return 'BASICO';
+  const cleaned = String(raw)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\r\n\t]+/g, '')
+    .trim()
+    .toUpperCase();
+  return cleaned.startsWith('PREM') ? 'PREMIUM' : 'BASICO';
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Carrega lista de usuários locais/cadastrados
   const [allUsers, setAllUsers] = useState<User[]>(() => {
@@ -66,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (parsed && parsed.id) {
           return {
             ...parsed,
-            plan: parsed.plan || 'BASICO',
+            plan: normalizePlanValue(parsed.plan),
             tenantId: parsed.tenantId || parsed.id,
           };
         }
@@ -89,18 +100,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return {
       ...adminUser,
       tenantId: adminUser.tenantId || adminUser.id,
-      plan: adminUser.plan || 'BASICO',
+      plan: normalizePlanValue(adminUser.plan),
       maxDiscountPercent: 100,
     };
   });
 
-  const currentPlan: SubscriptionPlan = currentUser.plan === 'PREMIUM' ? 'PREMIUM' : 'BASICO';
+  const currentPlan: SubscriptionPlan = normalizePlanValue(currentUser.plan);
 
   const setSubscriptionPlan = (plan: SubscriptionPlan) => {
+    const normalized = normalizePlanValue(plan);
     setCurrentUser((prev) => {
       const updated: User = {
         ...prev,
-        plan,
+        plan: normalized,
         updatedAt: new Date().toISOString(),
       };
       localStorage.setItem('vidrogestao_current_user', JSON.stringify(updated));
@@ -109,7 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Atualiza na lista local também
     setAllUsers((prev) =>
-      prev.map((u) => (u.id === currentUser.id ? { ...u, plan } : u))
+      prev.map((u) => (u.id === currentUser.id ? { ...u, plan: normalized } : u))
     );
   };
 

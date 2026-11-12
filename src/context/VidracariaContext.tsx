@@ -325,39 +325,55 @@ export const VidracariaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     let isMounted = true;
 
-    BackendApiService.fetchQuotes(tenantId).then((remoteQuotes) => {
-      if (isMounted && remoteQuotes) {
-        setQuotes((prev) => {
-          const map = new Map<string, Quote>();
-          prev
-            .filter((q) => !q.tenantId || q.tenantId === tenantId)
-            .forEach((q) => map.set(q.id, q));
-          remoteQuotes.forEach((q) => map.set(q.id, q));
-          return Array.from(map.values());
-        });
-      }
-    });
-
-    BackendApiService.fetchCompanySettings(tenantId).then((remoteSettings) => {
-      if (isMounted && remoteSettings) {
-        setCompanySettings((prev) => {
-          const merged: CompanySettings = {
-            ...prev,
-            ...remoteSettings,
-            id: tenantId,
-            tenantId,
-          };
-          localStorage.setItem(getTenantStorageKey('company_settings', tenantId), JSON.stringify(merged));
-          return merged;
-        });
-        if (remoteSettings.plan && remoteSettings.plan !== currentPlan) {
-          setSubscriptionPlan(remoteSettings.plan);
+    const syncFromBackend = () => {
+      BackendApiService.fetchQuotes(tenantId).then((remoteQuotes) => {
+        if (isMounted && remoteQuotes) {
+          setQuotes((prev) => {
+            const map = new Map<string, Quote>();
+            prev
+              .filter((q) => !q.tenantId || q.tenantId === tenantId)
+              .forEach((q) => map.set(q.id, q));
+            remoteQuotes.forEach((q) => map.set(q.id, q));
+            return Array.from(map.values());
+          });
         }
-      }
-    });
+      });
+
+      BackendApiService.fetchCompanySettings(tenantId).then((remoteSettings) => {
+        if (isMounted && remoteSettings) {
+          const normalizedRemotePlan = String(remoteSettings.plan || '')
+            .trim()
+            .toUpperCase()
+            .startsWith('PREM')
+            ? 'PREMIUM'
+            : 'BASICO';
+
+          setCompanySettings((prev) => {
+            const merged: CompanySettings = {
+              ...prev,
+              ...remoteSettings,
+              plan: normalizedRemotePlan,
+              id: tenantId,
+              tenantId,
+            };
+            localStorage.setItem(getTenantStorageKey('company_settings', tenantId), JSON.stringify(merged));
+            return merged;
+          });
+          setSubscriptionPlan(normalizedRemotePlan);
+        }
+      });
+    };
+
+    syncFromBackend();
+
+    const handleWindowFocus = () => {
+      syncFromBackend();
+    };
+    window.addEventListener('focus', handleWindowFocus);
 
     return () => {
       isMounted = false;
+      window.removeEventListener('focus', handleWindowFocus);
     };
   }, [tenantId]);
 

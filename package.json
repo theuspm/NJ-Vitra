@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "start:local": "node local-server.js",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "tsx --test tests/all.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

@@ -9,6 +9,26 @@ import express, { Request, Response, Router } from 'express';
 
 let supabaseClient: SupabaseClient | null = null;
 
+export function normalizePlan(rawPlan: unknown): 'BASICO' | 'PREMIUM' {
+  if (!rawPlan) return 'BASICO';
+  const cleaned = String(rawPlan)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\r\n\t]+/g, '')
+    .trim()
+    .toUpperCase();
+  if (cleaned.startsWith('PREM')) {
+    return 'PREMIUM';
+  }
+  return 'BASICO';
+}
+
+export function sanitizeTenantId(rawTenant: unknown): string {
+  if (typeof rawTenant !== 'string') return 'default';
+  const cleaned = rawTenant.trim().replace(/[^a-zA-Z0-9._@-]/g, '').slice(0, 128);
+  return cleaned.length > 0 ? cleaned : 'default';
+}
+
 export function cleanSupabaseUrl(rawUrl: string): string {
   let cleaned = (rawUrl || '').trim();
   cleaned = cleaned.replace(/\/+$/, '');
@@ -49,18 +69,26 @@ export function getSupabase(): SupabaseClient | null {
 }
 
 /**
- * Extrai o ID do lojista (tenantId) a partir do cabeçalho X-Tenant-Id
+ * Extrai e sanitiza o ID do lojista (tenantId) a partir do cabeçalho X-Tenant-Id
  */
 function getRequestTenantId(req: Request): string {
   const headerTenant = req.headers['x-tenant-id'];
   if (typeof headerTenant === 'string' && headerTenant.trim().length > 0) {
-    return headerTenant.trim();
+    return sanitizeTenantId(headerTenant);
   }
   return 'default';
 }
 
 export const apiRouter: Router = express.Router();
 apiRouter.use(express.json({ limit: '10mb' }));
+
+// Middleware de Segurança HTTP para todas as rotas da API
+apiRouter.use((_req: Request, res: Response, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  next();
+});
 
 // Status da conexão com Supabase
 apiRouter.get('/status', (_req: Request, res: Response) => {
@@ -89,11 +117,14 @@ apiRouter.post('/auth/login', async (req: Request, res: Response) => {
   const sb = getSupabase();
   const { email, password } = req.body || {};
 
-  if (!email || !password) {
+  if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
     return res.status(400).json({ error: 'Informe seu e-mail e senha.' });
   }
 
-  const cleanEmail = String(email).trim().toLowerCase();
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail || !password.trim()) {
+    return res.status(400).json({ error: 'Informe seu e-mail e senha.' });
+  }
 
   if (!sb) {
     return res.json({
@@ -123,8 +154,8 @@ apiRouter.post('/auth/login', async (req: Request, res: Response) => {
     const meta = authUser.user_metadata || {};
 
     // Busca configurações e plano da loja deste lojista no Supabase
-    let tenantSettings = await fetchTenantCompanySettings(sb, authUser.id);
-    const metaPlan = meta.plan === 'PREMIUM' ? 'PREMIUM' : 'BASICO';
+    let tenantSettings = await fetchTenantCompanySettings(sb, authUser.id, cleanEmail);
+    const metaPlan = normalizePlan(meta.plan);
 
     // Se for o primeiro login do lojista criado no Supabase, cria automaticamente a linha dele em company_settings
     if (!tenantSettings) {
@@ -146,7 +177,8 @@ apiRouter.post('/auth/login', async (req: Request, res: Response) => {
       tenantSettings = initialSettings;
     }
 
-    const effectivePlan = tenantSettings?.plan === 'PREMIUM' ? 'PREMIUM' : metaPlan;
+    const effectivePlan =
+      normalizePlan(tenantSettings?.plan) === 'PREMIUM' ? 'PREMIUM' : metaPlan;
     const effectiveStoreName =
       tenantSettings?.tradingName ||
       tenantSettings?.name ||
@@ -169,7 +201,10 @@ apiRouter.post('/auth/login', async (req: Request, res: Response) => {
         isActive: true,
         createdAt: authUser.created_at || new Date().toISOString(),
       },
-      companySettings: tenantSettings,
+      companySettings: {
+        ...tenantSettings,
+        plan: effectivePlan,
+      },
     });
   } catch (err: any) {
     console.error('[Supabase Auth] Erro em /auth/login:', err);
@@ -181,13 +216,44 @@ apiRouter.post('/auth/login', async (req: Request, res: Response) => {
 // FUNÇÕES AUXILIARES DE CONFIGURAÇÃO E PLANO POR LOJISTA
 // =========================================================
 
-async function fetchTenantCompanySettings(sb: SupabaseClient, tenantId: string): Promise<any | null> {
+async function fetchTenantCompanySettings(
+  sb: SupabaseClient,
+  tenantId: string,
+  userEmail?: string
+): Promise<any | null> {
   try {
-    const { data, error } = await sb
+    // 1. Tenta buscar pelo ID exato do tenant
+    let { data, error } = await sb
       .from('company_settings')
       .select('*')
       .eq('id', tenantId)
       .maybeSingle();
+
+    // 2. Se não encontrou pelo ID e temos o e-mail, tenta localizar pela coluna email
+    if ((!data || error) && userEmail) {
+      const byEmail = await sb
+        .from('company_settings')
+        .select('*')
+        .eq('email', userEmail)
+        .maybeSingle();
+      if (byEmail.data) {
+        data = byEmail.data;
+        error = null;
+      }
+    }
+
+    // 3. Fallback para linha 'default' caso o admin tenha editado a linha padrão no Supabase
+    if ((!data || error) && tenantId !== 'default') {
+      const byDefault = await sb
+        .from('company_settings')
+        .select('*')
+        .eq('id', 'default')
+        .maybeSingle();
+      if (byDefault.data) {
+        data = byDefault.data;
+        error = null;
+      }
+    }
 
     if (error || !data) return null;
 
@@ -199,11 +265,17 @@ async function fetchTenantCompanySettings(sb: SupabaseClient, tenantId: string):
         ? data.address
         : {};
 
+    // Prioriza sempre a coluna explícita 'plan' da tabela (normalizada contra espaços e Enter/\n)
+    const explicitColPlan = data.plan !== undefined && data.plan !== null && String(data.plan).trim() !== ''
+      ? normalizePlan(data.plan)
+      : null;
+    const resolvedPlan = explicitColPlan || normalizePlan(extraData.plan);
+
     return {
       ...extraData,
       id: tenantId,
       tenantId,
-      plan: data.plan || extraData.plan || 'BASICO',
+      plan: resolvedPlan,
       name: data.name || extraData.name || 'VIDRAÇARIA & ESQUADRIAS',
       tradingName: data.trading_name || extraData.tradingName || data.name || '',
       cnpj: data.cnpj || extraData.cnpj || '',
@@ -234,13 +306,10 @@ async function fetchTenantCompanySettings(sb: SupabaseClient, tenantId: string):
 
 async function saveTenantCompanySettings(sb: SupabaseClient, tenantId: string, settings: any) {
   // Preserva o plano que está no banco de dados (controlado exclusivamente pelo administrador no Supabase)
-  const currentInDb = await fetchTenantCompanySettings(sb, tenantId);
-  const effectivePlan =
-    currentInDb?.plan === 'PREMIUM' || currentInDb?.plan === 'BASICO'
-      ? currentInDb.plan
-      : settings.plan === 'PREMIUM'
-      ? 'PREMIUM'
-      : 'BASICO';
+  const currentInDb = await fetchTenantCompanySettings(sb, tenantId, settings?.email);
+  const effectivePlan = currentInDb?.plan
+    ? normalizePlan(currentInDb.plan)
+    : normalizePlan(settings?.plan);
 
   // Guardamos um objeto JSONB rico na coluna address (que já é JSONB na tabela original)
   // para preservar city, state, zipCode, plan e coleções extras sem depender de novas colunas!
@@ -410,6 +479,11 @@ apiRouter.get('/quotes', async (req: Request, res: Response) => {
 
 // Salvar ou atualizar orçamento isolado por Lojista
 apiRouter.post('/quotes', async (req: Request, res: Response) => {
+  const quote = req.body;
+  if (!quote || !quote.id || typeof quote.id !== 'string') {
+    return res.status(400).json({ error: 'Orçamento inválido (sem ID).' });
+  }
+
   const sb = getSupabase();
   if (!sb) {
     return res.json({ success: true, savedLocally: true, configured: false });
@@ -418,12 +492,8 @@ apiRouter.post('/quotes', async (req: Request, res: Response) => {
   const tenantId = getRequestTenantId(req);
 
   try {
-    const quote = req.body;
-    if (!quote || !quote.id) {
-      return res.status(400).json({ error: 'Orçamento inválido (sem ID).' });
-    }
 
-    const effectiveTenantId = quote.tenantId || tenantId;
+    const effectiveTenantId = tenantId !== 'default' ? tenantId : sanitizeTenantId(quote.tenantId || tenantId);
     const totalAmount = Number(quote.totalAmount || quote.total || 0);
     const subtotalAmount = Number(quote.subtotalAmount || quote.subtotal || 0);
     const discountPercent = Number(quote.discountPercent || 0);
@@ -503,15 +573,45 @@ apiRouter.post('/quotes', async (req: Request, res: Response) => {
   }
 });
 
-// Deletar orçamento
+// Deletar orçamento (com verificação de propriedade Multi-Tenant contra IDOR)
 apiRouter.delete('/quotes/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  if (!id || typeof id !== 'string' || id.trim().length === 0) {
+    return res.status(400).json({ error: 'ID de orçamento inválido.' });
+  }
+
   const sb = getSupabase();
   if (!sb) {
     return res.json({ success: true, configured: false });
   }
 
+  const tenantId = getRequestTenantId(req);
+
   try {
-    const { id } = req.params;
+    const { data: existing, error: fetchErr } = await sb
+      .from('quotes')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchErr) {
+      return res.status(500).json({ error: fetchErr.message });
+    }
+
+    if (existing) {
+      const rowOwner =
+        existing.owner_id ||
+        existing.data?.tenantId ||
+        (Array.isArray(existing.items) && existing.items[0]?.tenantId) ||
+        (!Array.isArray(existing.items) && existing.items?.tenantId);
+
+      if (rowOwner && rowOwner !== tenantId) {
+        return res.status(403).json({
+          error: 'Acesso negado: você não tem permissão para excluir orçamentos de outro lojista.',
+        });
+      }
+    }
+
     const { error } = await sb.from('quotes').delete().eq('id', id);
 
     if (error) {
