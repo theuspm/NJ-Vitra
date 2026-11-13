@@ -292,7 +292,7 @@ export const ProductionView: React.FC = () => {
 
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-slate-700 mb-1">Largura ($mm$)</label>
+                <label className="block text-[10px] font-bold text-slate-700 mb-1">Largura (mm)</label>
                 <input
                   type="number"
                   value={measWidth}
@@ -301,7 +301,7 @@ export const ProductionView: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-700 mb-1">Altura ($mm$)</label>
+                <label className="block text-[10px] font-bold text-slate-700 mb-1">Altura (mm)</label>
                 <input
                   type="number"
                   value={measHeight}

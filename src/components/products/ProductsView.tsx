@@ -136,7 +136,7 @@ export const ProductsView: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900">Catálogo de Produtos, Vidros & Acessórios</h1>
           <p className="text-xs text-slate-700 mt-0.5">
-            Gestão de medidas técnicas, espessuras, regras por $m^2$ ou unidade e histórico de preços auditado
+            Gestão de medidas técnicas, espessuras, regras por m² ou unidade e histórico de preços auditado
           </p>
         </div>
 
@@ -267,7 +267,7 @@ export const ProductsView: React.FC = () => {
               Nenhum produto ou vidro cadastrado
             </h3>
             <p className="text-xs text-slate-500 mb-5 max-w-sm mx-auto leading-relaxed">
-              Cadastre suas chapas de vidro por $m^2$, ferragens, perfis de alumínio e kits para compor seus orçamentos técnicos.
+              Cadastre suas chapas de vidro por m², ferragens, perfis de alumínio e kits para compor seus orçamentos técnicos.
             </p>
             <button
               onClick={handleOpenNew}
@@ -340,7 +340,7 @@ export const ProductsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Espessura ($mm$)</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Espessura (mm)</label>
                 <input
                   type="number"
                   value={thicknessMm}

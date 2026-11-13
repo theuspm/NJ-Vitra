@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useVidracaria } from '../../context/VidracariaContext';
 import { Customer, CustomerType } from '../../types';
+import { maskPhone, maskCpf, maskCnpj, maskCep, maskUf } from '../../utils/masks';
 
 export const CustomersView: React.FC = () => {
   const { customers, saveCustomer, deleteCustomer, quotes, orders, receivables } = useVidracaria();
@@ -77,10 +78,10 @@ export const CustomersView: React.FC = () => {
     setType(c.type);
     setName(c.name);
     setTradeName(c.tradeName || '');
-    setDocument(c.document);
+    setDocument(c.type === 'PESSOA_JURIDICA' ? maskCnpj(c.document) : maskCpf(c.document));
     setStateRegistration(c.stateRegistration || '');
-    setPhone(c.phone);
-    setWhatsapp(c.whatsapp);
+    setPhone(maskPhone(c.phone));
+    setWhatsapp(maskPhone(c.whatsapp));
     setEmail(c.email || '');
     setNotes(c.notes || '');
 
@@ -91,8 +92,8 @@ export const CustomersView: React.FC = () => {
       setComplement(addr.complement || '');
       setNeighborhood(addr.neighborhood);
       setCity(addr.city);
-      setState(addr.state);
-      setPostalCode(addr.postalCode || addr.zipCode || '');
+      setState(maskUf(addr.state || 'SP'));
+      setPostalCode(maskCep(addr.postalCode || addr.zipCode || ''));
     }
     setShowModal(true);
   };
@@ -311,8 +312,11 @@ export const CustomersView: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setType('PESSOA_FISICA')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                onClick={() => {
+                  setType('PESSOA_FISICA');
+                  setDocument((prev) => maskCpf(prev));
+                }}
+                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
                   type === 'PESSOA_FISICA'
                     ? 'bg-blue-600 text-white'
                     : 'bg-slate-100 text-slate-700'
@@ -322,8 +326,11 @@ export const CustomersView: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setType('PESSOA_JURIDICA')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                onClick={() => {
+                  setType('PESSOA_JURIDICA');
+                  setDocument((prev) => maskCnpj(prev));
+                }}
+                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
                   type === 'PESSOA_JURIDICA'
                     ? 'bg-blue-600 text-white'
                     : 'bg-slate-100 text-slate-700'
@@ -342,6 +349,7 @@ export const CustomersView: React.FC = () => {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  placeholder={type === 'PESSOA_JURIDICA' ? 'Ex: Construtora Horizonte Ltda' : 'Ex: Carlos Alberto Silva'}
                   className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl"
                 />
               </div>
@@ -353,6 +361,7 @@ export const CustomersView: React.FC = () => {
                     type="text"
                     value={tradeName}
                     onChange={(e) => setTradeName(e.target.value)}
+                    placeholder="Ex: Horizonte Engenharia"
                     className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl"
                   />
                 </div>
@@ -365,8 +374,16 @@ export const CustomersView: React.FC = () => {
                 <input
                   type="text"
                   value={document}
-                  onChange={(e) => setDocument(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl"
+                  onChange={(e) =>
+                    setDocument(
+                      type === 'PESSOA_JURIDICA'
+                        ? maskCnpj(e.target.value)
+                        : maskCpf(e.target.value)
+                    )
+                  }
+                  placeholder={type === 'PESSOA_JURIDICA' ? '00.000.000/0001-00' : '000.000.000-00'}
+                  maxLength={type === 'PESSOA_JURIDICA' ? 18 : 14}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-mono"
                 />
               </div>
 
@@ -376,7 +393,8 @@ export const CustomersView: React.FC = () => {
                   <input
                     type="text"
                     value={stateRegistration}
-                    onChange={(e) => setStateRegistration(e.target.value)}
+                    onChange={(e) => setStateRegistration(e.target.value.replace(/[^\dA-Za-z.-]/g, '').slice(0, 18))}
+                    placeholder="Ex: 110.042.490.114 ou ISENTO"
                     className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl"
                   />
                 </div>
@@ -387,7 +405,9 @@ export const CustomersView: React.FC = () => {
                 <input
                   type="text"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(maskPhone(e.target.value))}
+                  placeholder="(11) 98765-4321"
+                  maxLength={15}
                   className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl"
                 />
               </div>
@@ -397,7 +417,9 @@ export const CustomersView: React.FC = () => {
                 <input
                   type="text"
                   value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
+                  onChange={(e) => setWhatsapp(maskPhone(e.target.value))}
+                  placeholder="(11) 98765-4321"
+                  maxLength={15}
                   className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl"
                 />
               </div>
@@ -408,6 +430,7 @@ export const CustomersView: React.FC = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder="cliente@email.com.br"
                   className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl"
                 />
               </div>
@@ -417,50 +440,67 @@ export const CustomersView: React.FC = () => {
               <span className="text-xs font-bold text-slate-800 uppercase block mb-2">
                 Endereço Padrão de Entrega / Instalação
               </span>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-6 gap-2">
+                <div className="sm:col-span-2">
+                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">CEP</label>
+                  <input
+                    type="text"
+                    value={postalCode}
+                    onChange={(e) => setPostalCode(maskCep(e.target.value))}
+                    placeholder="00000-000"
+                    maxLength={9}
+                    className="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg font-mono"
+                  />
+                </div>
+                <div className="sm:col-span-3">
                   <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Logradouro</label>
                   <input
                     type="text"
                     value={street}
                     onChange={(e) => setStreet(e.target.value)}
+                    placeholder="Rua, Avenida, Alameda..."
                     className="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                   />
                 </div>
-                <div>
+                <div className="sm:col-span-1">
                   <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Número</label>
                   <input
                     type="text"
                     value={number}
                     onChange={(e) => setNumber(e.target.value)}
+                    placeholder="123"
                     className="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                   />
                 </div>
-                <div>
+                <div className="sm:col-span-2">
                   <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Bairro</label>
                   <input
                     type="text"
                     value={neighborhood}
                     onChange={(e) => setNeighborhood(e.target.value)}
+                    placeholder="Centro"
                     className="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                   />
                 </div>
-                <div>
+                <div className="sm:col-span-3">
                   <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Cidade</label>
                   <input
                     type="text"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
+                    placeholder="São Paulo"
                     className="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                   />
                 </div>
-                <div>
+                <div className="sm:col-span-1">
                   <label className="block text-[10px] font-bold text-slate-600 mb-0.5">UF</label>
                   <input
                     type="text"
                     value={state}
-                    onChange={(e) => setState(e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
+                    onChange={(e) => setState(maskUf(e.target.value))}
+                    placeholder="SP"
+                    maxLength={2}
+                    className="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg uppercase font-bold"
                   />
                 </div>
               </div>

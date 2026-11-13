@@ -24,6 +24,7 @@ import {
   User,
   Phone,
   MapPin,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useVidracaria } from '../../context/VidracariaContext';
@@ -78,6 +79,8 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
   const [discountPercent, setDiscountPercent] = useState(0);
   const [freightAmount, setFreightAmount] = useState(0);
   const [notes, setNotes] = useState('');
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
 
   // Itens em construção no orçamento
   const [quoteItems, setQuoteItems] = useState<
@@ -575,8 +578,8 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
                   <tr>
                     <th className="py-2.5 px-3">Item</th>
                     <th className="py-2.5 px-3">Descrição Técnica</th>
-                    <th className="py-2.5 px-3">Medidas ($L \times A$)</th>
-                    <th className="py-2.5 px-3">Área ($m^2$)</th>
+                    <th className="py-2.5 px-3">Medidas (L x A)</th>
+                    <th className="py-2.5 px-3">Área (m²)</th>
                     <th className="py-2.5 px-3">Qtd</th>
                     <th className="py-2.5 px-3">Unitário</th>
                     <th className="py-2.5 px-3 text-right">Total</th>
@@ -667,7 +670,7 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
                 <div>
                   <h2 className="text-sm font-bold">Novo Orçamento Direto</h2>
                   <p className="text-[11px] text-slate-300">
-                    Digite os dados do cliente e os itens manualmente com cálculo automático de $m^2$
+                    Digite os dados do cliente e os itens manualmente com cálculo automático de m²
                   </p>
                 </div>
               </div>
@@ -700,34 +703,124 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
                     </span>
                   </div>
 
-                  {isPremium && customers.filter((c) => !c.deletedAt).length > 0 && (
-                    <select
-                      onChange={(e) => {
-                        const cust = customers.find((c) => c.id === e.target.value);
-                        if (cust) {
-                          setCustomerName(cust.name);
-                          setCustomerPhone(maskPhone(cust.whatsapp || cust.phone || ''));
-                          setCustomerDocument(maskCpfCnpj(cust.document || ''));
-                          const addr = cust.addresses?.[0];
-                          if (addr) {
-                            setInstallationAddress(
-                              `${addr.street}, ${addr.number}${addr.complement ? ' - ' + addr.complement : ''} - ${addr.neighborhood}, ${addr.city}/${addr.state}`
-                            );
-                          }
-                        }
-                      }}
-                      defaultValue=""
-                      className="px-2.5 py-1 text-[11px] bg-amber-50 border border-amber-300 text-amber-900 font-bold rounded-lg focus:outline-hidden"
-                    >
-                      <option value="">Preencher com Cliente do CRM (Premium)...</option>
-                      {customers
-                        .filter((c) => !c.deletedAt)
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name} ({c.phone || c.document})
-                          </option>
-                        ))}
-                    </select>
+                  {customers.filter((c) => !c.deletedAt).length > 0 && (
+                    <div className="relative w-full sm:w-80">
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomerDropdown((prev) => !prev)}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs bg-white hover:bg-blue-50/50 border border-blue-200 text-slate-800 font-bold rounded-xl shadow-2xs transition-all cursor-pointer"
+                      >
+                        <span className="flex items-center gap-1.5 truncate">
+                          <Search className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span className="truncate">
+                            {customerName
+                              ? `Cliente: ${customerName}`
+                              : 'Buscar cliente cadastrado...'}
+                          </span>
+                        </span>
+                        <ChevronDown
+                          className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${
+                            showCustomerDropdown ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </button>
+
+                      {showCustomerDropdown && (
+                        <div className="absolute right-0 mt-1.5 w-full sm:w-96 bg-white rounded-2xl border border-slate-200 shadow-2xl z-30 overflow-hidden">
+                          <div className="p-2.5 bg-slate-50 border-b border-slate-200">
+                            <div className="relative">
+                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                              <input
+                                type="text"
+                                autoFocus
+                                value={customerSearchQuery}
+                                onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                                placeholder="Filtrar por nome, telefone ou CPF/CNPJ..."
+                                className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                              />
+                              {customerSearchQuery && (
+                                <button
+                                  type="button"
+                                  onClick={() => setCustomerSearchQuery('')}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="max-h-56 overflow-y-auto divide-y divide-slate-100">
+                            {customers
+                              .filter((c) => !c.deletedAt)
+                              .filter((c) => {
+                                const q = customerSearchQuery.trim().toLowerCase();
+                                if (!q) return true;
+                                return (
+                                  c.name.toLowerCase().includes(q) ||
+                                  (c.document || '').toLowerCase().includes(q) ||
+                                  (c.phone || '').toLowerCase().includes(q) ||
+                                  (c.whatsapp || '').toLowerCase().includes(q)
+                                );
+                              })
+                              .map((cust) => (
+                                <button
+                                  key={cust.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setCustomerName(cust.name);
+                                    setCustomerPhone(maskPhone(cust.whatsapp || cust.phone || ''));
+                                    setCustomerDocument(maskCpfCnpj(cust.document || ''));
+                                    const addr = cust.addresses?.[0];
+                                    if (addr) {
+                                      setInstallationAddress(
+                                        `${addr.street}, ${addr.number}${
+                                          addr.complement ? ' - ' + addr.complement : ''
+                                        } - ${addr.neighborhood}, ${addr.city}/${addr.state}`
+                                      );
+                                    }
+                                    setShowCustomerDropdown(false);
+                                    setCustomerSearchQuery('');
+                                  }}
+                                  className="w-full text-left px-3.5 py-2.5 hover:bg-blue-50/70 transition-colors flex items-center justify-between gap-2 cursor-pointer"
+                                >
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold text-slate-900 truncate">
+                                      {cust.name}
+                                    </p>
+                                    <p className="text-[10px] text-slate-500 truncate">
+                                      {cust.document ? `Doc: ${cust.document}` : 'Sem documento'}
+                                      {cust.phone || cust.whatsapp
+                                        ? ` • ${cust.whatsapp || cust.phone}`
+                                        : ''}
+                                    </p>
+                                  </div>
+                                  <span className="text-[10px] font-bold text-blue-600 shrink-0 bg-blue-50 px-2 py-0.5 rounded-md">
+                                    Selecionar
+                                  </span>
+                                </button>
+                              ))}
+
+                            {customers
+                              .filter((c) => !c.deletedAt)
+                              .filter((c) => {
+                                const q = customerSearchQuery.trim().toLowerCase();
+                                if (!q) return true;
+                                return (
+                                  c.name.toLowerCase().includes(q) ||
+                                  (c.document || '').toLowerCase().includes(q) ||
+                                  (c.phone || '').toLowerCase().includes(q) ||
+                                  (c.whatsapp || '').toLowerCase().includes(q)
+                                );
+                              }).length === 0 && (
+                              <div className="py-6 px-4 text-center text-xs text-slate-500">
+                                Nenhum cliente encontrado para "{customerSearchQuery}".
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -932,7 +1025,7 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                       <div>
                         <label className="block text-[11px] font-bold text-blue-900 mb-1">
-                          Largura ($mm$)
+                          Largura (mm)
                         </label>
                         <input
                           type="number"
@@ -945,7 +1038,7 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
 
                       <div>
                         <label className="block text-[11px] font-bold text-blue-900 mb-1">
-                          Altura ($mm$)
+                          Altura (mm)
                         </label>
                         <input
                           type="number"
@@ -958,7 +1051,7 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
 
                       <div>
                         <label className="block text-[11px] font-bold text-blue-900 mb-1">
-                          Área Calculada ($m^2$)
+                          Área Calculada (m²)
                         </label>
                         <div className="px-2.5 py-1.5 bg-blue-100/60 border border-blue-200 rounded-lg font-black text-blue-900">
                           {currentAreaM2.toFixed(3)} m²
@@ -998,7 +1091,7 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
                       {pricingMode === 'M2' ? (
                         <div>
                           <label className="block text-[10px] font-bold text-blue-900 mb-1">
-                            Preço do $m^2$ (R$)
+                            Preço do m² (R$)
                           </label>
                           <input
                             type="number"

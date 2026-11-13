@@ -106,17 +106,21 @@ describe('1. Testes de Unidade (Unit Tests)', () => {
     });
   });
 
-  describe('Masks - Máscaras de Telefone, CPF e CNPJ', () => {
+  describe('Masks - Máscaras de Telefone, CPF, CNPJ, CEP e UF', () => {
     it('deve formatar telefone fixo (10 dígitos) e celular (11 dígitos)', () => {
       assert.equal(maskPhone('1134567890'), '(11) 3456-7890');
       assert.equal(maskPhone('11987654321'), '(11) 98765-4321');
       assert.equal(maskPhone('11987654321999'), '(11) 98765-4321');
     });
 
-    it('deve formatar CPF (11 dígitos) e alternar automaticamente para CNPJ (14 dígitos)', () => {
+    it('deve formatar CPF (11 dígitos) e alternar automaticamente para CNPJ (14 dígitos)', async () => {
+      const { maskCpf, maskCep, maskUf } = await import('../src/utils/masks.js');
+      assert.equal(maskCpf('12345678901999'), '123.456.789-01');
       assert.equal(maskCpfCnpj('12345678901'), '123.456.789-01');
       assert.equal(maskCpfCnpj('12345678000199'), '12.345.678/0001-99');
       assert.equal(maskCnpj('12345678000199'), '12.345.678/0001-99');
+      assert.equal(maskCep('0131010099'), '01310-100');
+      assert.equal(maskUf('sp123'), 'SP');
     });
   });
 

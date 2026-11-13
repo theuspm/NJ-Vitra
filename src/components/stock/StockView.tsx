@@ -106,7 +106,7 @@ export const StockView: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900">Gestão de Estoque & Materiais</h1>
           <p className="text-xs text-slate-700 mt-0.5">
-            Controle de saldo físico, saldo reservado e saldo disponível ($Disponível = Físico - Reservado$)
+            Controle de saldo físico, saldo reservado e saldo disponível (Disponível = Físico - Reservado)
           </p>
         </div>
 
